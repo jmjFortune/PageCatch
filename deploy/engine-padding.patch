@@ -1,0 +1,76 @@
+--- a/src/N_m3u8DL-RE/Crypto/AESUtil.cs
++++ b/src/N_m3u8DL-RE/Crypto/AESUtil.cs
+@@ -21,8 +21,27 @@
+ 
+     public static byte[] AES128Decrypt(byte[] encryptedBuff, byte[] keyByte, byte[] ivByte, CipherMode mode = CipherMode.CBC, PaddingMode padding = PaddingMode.PKCS7)
+     {
+-        byte[] inBuff = encryptedBuff;
++        if (padding != PaddingMode.PKCS7)
++            return AES128DecryptRaw(encryptedBuff, keyByte, ivByte, mode, padding);
+ 
++        try
++        {
++            return AES128DecryptRaw(encryptedBuff, keyByte, ivByte, mode, PaddingMode.PKCS7);
++        }
++        catch (CryptographicException)
++        {
++            // PageCatch: 部分源站没有写入 PKCS#7 填充块（解密后长度恰好是完整媒体数据的
++            // 整数倍），严格模式会抛 "Padding is invalid and cannot be removed" 并丢弃整个
++            // 分片。这里回退到无填充解密，但只有在明文本身看起来是完整媒体时才保留；
++            // 若密文中途被改坏（尾部是乱码），继续抛出，交给上层重试该分片。
++            var raw = AES128DecryptRaw(encryptedBuff, keyByte, ivByte, mode, PaddingMode.None);
++            if (IsCompleteMedia(raw)) return raw;
++            throw;
++        }
++    }
++
++    private static byte[] AES128DecryptRaw(byte[] encryptedBuff, byte[] keyByte, byte[] ivByte, CipherMode mode, PaddingMode padding)
++    {
+         Aes dcpt = Aes.Create();
+         dcpt.BlockSize = 128;
+         dcpt.KeySize = 128;
+@@ -32,7 +51,40 @@
+         dcpt.Padding = padding;
+ 
+         ICryptoTransform cTransform = dcpt.CreateDecryptor();
+-        byte[] resultArray = cTransform.TransformFinalBlock(inBuff, 0, inBuff.Length);
+-        return resultArray;
++        return cTransform.TransformFinalBlock(encryptedBuff, 0, encryptedBuff.Length);
+     }
+-}
+\ No newline at end of file
++
++    /// <summary>
++    /// 判断解密结果是否是一段完整媒体：MPEG-TS 按 188 字节包对齐且包首同步字节正常，
++    /// 或 fMP4 以常见 box 开头。
++    /// </summary>
++    private static bool IsCompleteMedia(byte[] data)
++    {
++        if (data.Length >= 8)
++        {
++            var box = System.Text.Encoding.ASCII.GetString(data, 4, 4);
++            if (box is "ftyp" or "styp" or "moof" or "moov" or "mdat" or "sidx" or "free")
++                return true;
++        }
++
++        if (data.Length >= 188 && data.Length % 188 == 0)
++        {
++            var packets = data.Length / 188;
++            var probe = Math.Min(packets, 64);
++            for (var i = 0; i < probe; i++)
++            {
++                if (data[i * 188] != 0x47) return false;
++            }
++            if (probe < packets)
++            {
++                for (var i = packets - probe; i < packets; i++)
++                {
++                    if (data[i * 188] != 0x47) return false;
++                }
++            }
++            return true;
++        }
++
++        return false;
++    }
++}

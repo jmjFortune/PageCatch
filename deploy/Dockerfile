@@ -23,8 +23,9 @@ WORKDIR /engine
 RUN curl -fL --retry 3 "https://codeload.github.com/nilaoda/N_m3u8DL-RE/tar.gz/${ENGINE_COMMIT}" -o source.tar.gz && \
     printf '%s  source.tar.gz\n' "$ENGINE_SOURCE_SHA256" | sha256sum -c - && \
     tar -xzf source.tar.gz --strip-components=1 && rm source.tar.gz
-COPY deploy/engine-segment-retry.patch ./
+COPY deploy/engine-segment-retry.patch deploy/engine-padding.patch ./
 RUN patch -p1 < engine-segment-retry.patch
+RUN patch -p1 < engine-padding.patch
 # Self-contained publishing supports both target architectures from the build host.
 # The runtime stays bundled with the engine; no .NET installation is needed on the NAS.
 RUN --mount=type=cache,target=/root/.nuget/packages \
@@ -45,6 +46,7 @@ ENV PC_HOST=0.0.0.0 PC_DATA=/data PC_OUTPUT=/downloads PC_BROWSER=/usr/bin/chrom
 COPY third-party /usr/share/doc/pagecatch/third-party
 COPY --from=engine /engine/out/DOTNET-*.txt /usr/share/doc/pagecatch/third-party/
 COPY deploy/engine-segment-retry.patch /usr/share/doc/pagecatch/third-party/engine-segment-retry.patch
+COPY deploy/engine-padding.patch /usr/share/doc/pagecatch/third-party/engine-padding.patch
 COPY LICENSE /usr/share/doc/pagecatch/LICENSE
 EXPOSE 8787
 WORKDIR /app
