@@ -165,8 +165,6 @@ function renderTasks() {
       content.append(file);
     }
     const side = node('div', 'task-side');
-    side.append(node('span', 'badge ' + task.status, statusNames[task.status] || task.status));
-    const actions = node('div', 'task-actions');
     function action(label, symbol, type, callback) {
       const button = node('button', 'icon-button');
       button.type = 'button'; button.title = label; button.setAttribute('aria-label', label);
@@ -181,13 +179,18 @@ function renderTasks() {
           if (hadFocus && document.activeElement === document.body && !$('log-dialog').open && !$('downloads-view').hidden) restoreTaskFocus(task.id, type);
         }
       };
-      actions.append(button);
+      return button;
     }
-    action('View logs', 'log', 'log', () => openLog(task));
-    if (isActive(task)) action('Cancel task', 'close', 'cancel', async () => { await api('/tasks/' + task.id + '/cancel', { method: 'POST' }); await refresh(); });
-    if (['fail', 'cancelled'].includes(task.status)) action('Retry task', 'retry', 'retry', async () => { await api('/tasks/' + task.id + '/retry', { method: 'POST' }); await refresh(); });
-    if (task.output) action('Copy save path', 'copy', 'copy', async () => { await navigator.clipboard.writeText(task.output); showNotice('Save path copied'); });
-    if (['ok', 'duplicate', 'fail', 'cancelled'].includes(task.status)) action('Delete record', 'trash', 'delete', () => openDeleteRecord(task));
+    const head = node('div', 'task-head');
+    if (task.url) head.append(action('Copy link', 'link', 'copy-link', async () => { await navigator.clipboard.writeText(task.url); showNotice('Link copied'); }));
+    head.append(node('span', 'badge ' + task.status, statusNames[task.status] || task.status));
+    side.append(head);
+    const actions = node('div', 'task-actions');
+    actions.append(action('View logs', 'log', 'log', () => openLog(task)));
+    if (isActive(task)) actions.append(action('Cancel task', 'close', 'cancel', async () => { await api('/tasks/' + task.id + '/cancel', { method: 'POST' }); await refresh(); }));
+    if (['fail', 'cancelled'].includes(task.status)) actions.append(action('Retry task', 'retry', 'retry', async () => { await api('/tasks/' + task.id + '/retry', { method: 'POST' }); await refresh(); }));
+    if (task.output) actions.append(action('Copy save path', 'copy', 'copy', async () => { await navigator.clipboard.writeText(task.output); showNotice('Save path copied'); }));
+    if (['ok', 'duplicate', 'fail', 'cancelled'].includes(task.status)) actions.append(action('Delete record', 'trash', 'delete', () => openDeleteRecord(task)));
     side.append(actions); row.append(fileIcon, content, side); fragment.append(row);
   }
   list.replaceChildren(fragment);
