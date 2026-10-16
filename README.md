@@ -48,8 +48,8 @@ name,time,url
 需要 Git、支持 BuildKit 的 Docker，以及 Docker Compose。构建时需要联网获取基础镜像、系统软件包和下载引擎。
 
 ```bash
-git clone https://github.com/jmjFortune/m3u8-download.git
-cd m3u8-download
+git clone https://github.com/jmjFortune/PageCatch.git
+cd PageCatch
 cp .env.example .env
 ```
 

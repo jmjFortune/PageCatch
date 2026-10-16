@@ -16,6 +16,10 @@ use std::{
 use url::Url;
 
 pub const UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+
+/// 一次解析的总时限；静态解析和浏览器解析共用它。
+const RESOLVE_BUDGET: Duration = Duration::from_secs(280);
+
 #[derive(Clone, Debug)]
 pub struct Resolved {
     pub url: Url,
@@ -170,14 +174,16 @@ pub async fn resolve(
     raw: &str,
     input: &BTreeMap<String, String>,
 ) -> Result<Resolved> {
-    tokio::time::timeout(Duration::from_secs(90), resolve_inner(config, raw, input))
+    let started = tokio::time::Instant::now();
+    tokio::time::timeout(RESOLVE_BUDGET, resolve_inner(config, raw, input, started))
         .await
-        .context("Parsing exceeded 90 seconds")?
+        .context("Parsing exceeded 280 seconds")?
 }
 async fn resolve_inner(
     config: &Config,
     raw: &str,
     input: &BTreeMap<String, String>,
+    started: tokio::time::Instant,
 ) -> Result<Resolved> {
     let initial = validate_url(raw)?;
     let jar = Arc::new(Jar::default());
@@ -273,7 +279,8 @@ async fn resolve_inner(
             pending.extend(refs.into_iter().map(|v| (v, depth + 1, false)));
         }
     }
-    match browser::capture(config, &browser_page, input).await {
+    let budget = RESOLVE_BUDGET.saturating_sub(started.elapsed());
+    match browser::capture(config, &browser_page, input, budget).await {
         Ok(found) => {
             for (u, h) in found {
                 match validate(&client, u, h).await {
