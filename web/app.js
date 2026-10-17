@@ -80,6 +80,27 @@ function showNotice(text, error = false, kind = 'operation', auth = false) {
   $('notice-settings').hidden = !auth;
   if (text && !error) setTimeout(() => { if (version === noticeVersion) showNotice(''); }, 6000);
 }
+// navigator.clipboard 只在安全上下文（HTTPS 或 localhost）里存在，用 http://<局域网 IP>
+// 打开时它是 undefined，所以要退回旧的 textarea + execCommand 方式。
+async function copyText(text) {
+  if (window.isSecureContext && navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.cssText = 'position:fixed;top:-1000px;left:-1000px';
+  document.body.append(area);
+  const selection = document.getSelection();
+  const previous = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+  area.select();
+  area.setSelectionRange(0, text.length);
+  const copied = document.execCommand('copy');
+  area.remove();
+  if (selection && previous) { selection.removeAllRanges(); selection.addRange(previous); }
+  if (!copied) throw new Error('This browser refused to copy to the clipboard');
+}
 function setConnection(connected, needsToken = false) {
   $('connection').textContent = connected ? 'Connected' : needsToken ? 'Authentication required' : 'Disconnected';
   $('connection').classList.toggle('offline', !connected);
@@ -182,14 +203,14 @@ function renderTasks() {
       return button;
     }
     const head = node('div', 'task-head');
-    if (task.url) head.append(action('Copy link', 'link', 'copy-link', async () => { await navigator.clipboard.writeText(task.url); showNotice('Link copied'); }));
+    if (task.url) head.append(action('Copy link', 'link', 'copy-link', async () => { await copyText(task.url); showNotice('Link copied'); }));
     head.append(node('span', 'badge ' + task.status, statusNames[task.status] || task.status));
     side.append(head);
     const actions = node('div', 'task-actions');
     actions.append(action('View logs', 'log', 'log', () => openLog(task)));
     if (isActive(task)) actions.append(action('Cancel task', 'close', 'cancel', async () => { await api('/tasks/' + task.id + '/cancel', { method: 'POST' }); await refresh(); }));
     if (['fail', 'cancelled'].includes(task.status)) actions.append(action('Retry task', 'retry', 'retry', async () => { await api('/tasks/' + task.id + '/retry', { method: 'POST' }); await refresh(); }));
-    if (task.output) actions.append(action('Copy save path', 'copy', 'copy', async () => { await navigator.clipboard.writeText(task.output); showNotice('Save path copied'); }));
+    if (task.output) actions.append(action('Copy save path', 'copy', 'copy', async () => { await copyText(task.output); showNotice('Save path copied'); }));
     if (['ok', 'duplicate', 'fail', 'cancelled'].includes(task.status)) actions.append(action('Delete record', 'trash', 'delete', () => openDeleteRecord(task)));
     side.append(actions); row.append(fileIcon, content, side); fragment.append(row);
   }
