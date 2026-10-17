@@ -252,7 +252,7 @@ impl Queue {
         )
         .await?;
         anyhow::ensure!(!cancel.is_cancelled(), "Cancelled");
-        let bytes = tokio::fs::metadata(&file).await?.len();
+        let bytes = tokio::fs::metadata(&file.path).await?.len();
         self.store.update(
             task.id,
             "verifying",
@@ -261,7 +261,7 @@ impl Queue {
             bytes,
             None,
         )?;
-        let duration = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, &file, media.duration)=>r? };
+        let (duration, tolerated) = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, task.id, &file.path, media.duration, file.missing_segments)=>r? };
         anyhow::ensure!(!cancel.is_cancelled(), "Cancelled");
         let suffix = if config.preview_segments.is_some() {
             "_preview"
@@ -271,14 +271,24 @@ impl Queue {
         let dest = downloader::output::publish(
             &config.output,
             &format!("{}-{}{suffix}.mp4", task.id, task.name),
-            &file,
+            &file.path,
             &cancel,
         )
         .await?;
+        // 成品可能是在严格路径失败后退选救回来的，消息里要写清楚代价。
+        let mut note = String::new();
+        if let Some((missing, total)) = file.missing_segments {
+            note.push_str(&format!(
+                " · {missing} of {total} segments missing, saved as-is"
+            ));
+        }
+        if tolerated {
+            note.push_str(" · timestamp warning tolerated");
+        }
         self.store.update(
             task.id,
             "ok",
-            &format!("Download complete · {duration:.2} s · Strict verification passed"),
+            &format!("Download complete · {duration:.2} s · Strict verification passed{note}"),
             task.attempt,
             bytes,
             dest.to_str(),
