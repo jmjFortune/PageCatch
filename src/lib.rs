@@ -4,5 +4,6 @@ pub mod cpu;
 pub mod downloader;
 pub mod model;
 pub mod queue;
+pub mod remedy;
 pub mod resolver;
 pub mod store;

@@ -2,7 +2,7 @@ use crate::{
     config::{Config, DownloadSettings},
     downloader::{self, verify},
     model::Task,
-    resolver,
+    remedy, resolver,
     store::Store,
 };
 use std::{
@@ -184,6 +184,22 @@ impl Queue {
                 Err(e) => {
                     last = format!("{e:#}");
                     downloader::append_log(&config, task.id, &last);
+                    // 补救选择集中在 remedy 模块：这里只关心“还要不要再试”。
+                    match remedy::choose(remedy::Failure::Message(&last)) {
+                        remedy::Remedy::Stop(reason) => {
+                            downloader::append_log(
+                                &config,
+                                task.id,
+                                &format!("Remedy: stop retrying — {reason}"),
+                            );
+                            break;
+                        }
+                        other => downloader::append_log(
+                            &config,
+                            task.id,
+                            &format!("Remedy: {}", other.label()),
+                        ),
+                    }
                 }
             }
             if cancel.is_cancelled() {

@@ -1,6 +1,8 @@
 pub(super) mod output;
 pub mod verify;
-use crate::{config::Config, model::Task, resolver::Resolved, store::Store};
+use crate::{
+    config::Config, model::Task, remedy, remedy::Remedy, resolver::Resolved, store::Store,
+};
 use anyhow::{Context, Result};
 use portable_pty::{CommandBuilder, PtySize, native_pty_system};
 use std::{
@@ -204,40 +206,6 @@ fn run_engine(
     let _ = reader_thread.join();
     Ok(exit)
 }
-/// 引擎失败按日志分类，不同原因走不同补救：
-/// - `MissingSegments`：播放列表列出的分片有一部分源站不给（404 等），引擎因为
-///   “分片数与列表不符”放弃。退选允许缺片再跑一次，成品会缺一小段。
-/// - `Unknown`：认不出来的失败（网络、鉴权、解密、超时……）。重试或退选都没有
-///   意义，照旧报错，让日志和消息把原因说清楚。
-#[derive(Debug, PartialEq, Eq)]
-enum EngineFailure {
-    MissingSegments { missing: u64, total: u64 },
-    Unknown,
-}
-fn classify_engine_failure(log: &Path, from: u64) -> EngineFailure {
-    let Some(text) = read_log_tail(log, from) else {
-        return EngineFailure::Unknown;
-    };
-    let pattern =
-        regex::Regex::new(r"Segment count check not pass, total: (\d+), downloaded: (\d+)");
-    let Some(captures) = pattern.ok().and_then(|pattern| pattern.captures(&text)) else {
-        return EngineFailure::Unknown;
-    };
-    let (Some(total), Some(downloaded)) = (
-        captures[1].parse::<u64>().ok(),
-        captures[2].parse::<u64>().ok(),
-    ) else {
-        return EngineFailure::Unknown;
-    };
-    if total > downloaded {
-        EngineFailure::MissingSegments {
-            missing: total - downloaded,
-            total,
-        }
-    } else {
-        EngineFailure::Unknown
-    }
-}
 /// 只读这次运行追加的那段日志，免得拿上一次尝试的失败原因来做判断。
 fn read_log_tail(log: &Path, from: u64) -> Option<String> {
     let mut file = std::fs::File::open(log).ok()?;
@@ -270,8 +238,9 @@ pub async fn download(
         // 只有引擎明确报“分片数与列表不符”时才退选允许缺片再跑一次；其他原因
         // （网络、鉴权、解密）退选也下不出东西，不浪费一次下载。
         if !exit.success()
-            && let EngineFailure::MissingSegments { missing, total } =
-                classify_engine_failure(&log, offset)
+            && let Some(tail) = read_log_tail(&log, offset)
+            && let Remedy::AllowMissingSegments { missing, total } =
+                remedy::choose(remedy::Failure::Engine(&tail))
         {
             append_log(
                 &config,
@@ -308,41 +277,22 @@ pub fn append_log(config: &Config, id: i64, message: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     #[test]
-    fn engine_failures_are_classified_from_the_log() {
+    fn the_log_tail_only_covers_the_current_run() {
         let dir = tempfile::tempdir().unwrap();
         let log = dir.path().join("1.log");
         std::fs::write(
             &log,
-            "Loading URL: https://example.test/index.m3u8\n\
-             ERROR: Response status code does not indicate success: 404 (Not Found).\n\
-             ERROR: Segment count check not pass, total: 753, downloaded: 752.\n\
-             ERROR: Failed\n",
+            "Segment count check not pass, total: 3, downloaded: 2.\n",
         )
         .unwrap();
-        assert_eq!(
-            classify_engine_failure(&log, 0),
-            EngineFailure::MissingSegments {
-                missing: 1,
-                total: 753
-            }
-        );
-        // 只看这次尝试追加的那一段：上一次尝试的失败原因不能沿用。
+        assert!(read_log_tail(&log, 0).unwrap().contains("total: 3"));
+        // 只有偏移之后追加的内容才算这次尝试的输出。
         let offset = std::fs::metadata(&log).unwrap().len();
+        assert_eq!(read_log_tail(&log, offset), None);
         let mut file = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
-        writeln!(file, "ERROR: Failed").unwrap();
-        assert_eq!(
-            classify_engine_failure(&log, offset),
-            EngineFailure::Unknown
-        );
-        // 认不出来的失败（网络、鉴权、解密）不退选。
-        let other = dir.path().join("2.log");
-        std::fs::write(&other, "ERROR: Failed to get the key\n").unwrap();
-        assert_eq!(classify_engine_failure(&other, 0), EngineFailure::Unknown);
-        assert_eq!(
-            classify_engine_failure(&dir.path().join("3.log"), 0),
-            EngineFailure::Unknown
-        );
+        std::io::Write::write_all(&mut file, b"ERROR: Failed\n").unwrap();
+        assert_eq!(read_log_tail(&log, offset).unwrap().trim(), "ERROR: Failed");
+        assert_eq!(read_log_tail(&dir.path().join("missing.log"), 0), None);
     }
 }
