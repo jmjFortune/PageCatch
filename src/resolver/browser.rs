@@ -114,6 +114,32 @@ const PLAY_ENTRY_JS: &str = r#"(() => {
   return best;
 })()"#;
 
+/// 有些站点把清单地址放在加密接口里：页面自己的 JS 解密后才交给播放器，浏览器里
+/// 因此抓不到任何媒体请求（播放器甚至可能根本不创建）。这里不逆向它的算法，只包住
+/// 页面解密结果的出口（decodeURIComponent / TextDecoder.decode / JSON.parse），把
+/// 流经的明文清单地址收进 window.__pcMedia，再由解析器去验证。
+const MEDIA_HOOK_JS: &str = r#"(() => {
+  if (window.__pcMedia) return;
+  const found = [];
+  window.__pcMedia = found;
+  const keep = text => {
+    if (typeof text !== 'string' || text.length < 12 || text.length > 400000) return;
+    if (!/\.m3u8|\.mpd/.test(text)) return;
+    const plain = text.replace(/\\\//g, '/');
+    const matches = plain.match(/https?:\/\/[^"'\s\\<>]+\.(?:m3u8|mpd)[^"'\s\\<>]*/g);
+    if (!matches) return;
+    for (const url of matches) if (!found.includes(url) && found.length < 20) found.push(url);
+  };
+  const decode = window.decodeURIComponent;
+  window.decodeURIComponent = function (text) { const out = decode.call(window, text); keep(out); return out; };
+  const parse = JSON.parse;
+  JSON.parse = function (text, ...rest) { const out = parse.call(this, text, ...rest); keep(text); return out; };
+  if (window.TextDecoder) {
+    const decodeBytes = TextDecoder.prototype.decode;
+    TextDecoder.prototype.decode = function (...args) { const out = decodeBytes.apply(this, args); keep(out); return out; };
+  }
+})();"#;
+
 /// 先按桌面身份解析，页面没有给出媒体请求时再用手机身份重试一次：只给
 /// 桌面浏览器跳搜索引擎的站点必须走这条路。两次尝试共用调用方给的时间
 /// 预算，避免第一次把全部时间用掉。
@@ -330,6 +356,15 @@ async fn capture_session(
     )
     .await?;
     send(&mut ws, next_id(), Some(&session), "Page.enable", json!({})).await?;
+    // 注入要在页面脚本之前完成，所以放在导航之前。
+    send(
+        &mut ws,
+        next_id(),
+        Some(&session),
+        "Page.addScriptToEvaluateOnNewDocument",
+        json!({"source":MEDIA_HOOK_JS}),
+    )
+    .await?;
     // 播放器常放在跨站 iframe 里，那是独立的浏览器会话；不接管它就只能看到主页面。
     send(
         &mut ws,
@@ -386,6 +421,7 @@ async fn capture_session(
     let mut landed = String::new();
     let mut blocked_by = None;
     let mut probe_id = None;
+    let mut media_probe_id = None;
     let mut probes = 0;
     let mut probe_due = tokio::time::Instant::now() + Duration::from_secs(5);
     let mut tick = tokio::time::interval(Duration::from_secs(2));
@@ -408,6 +444,11 @@ async fn capture_session(
                     probe_id=Some(id);
                     send(&mut ws,id,Some(&session),"Runtime.evaluate",json!({"expression":PLAY_ENTRY_JS,"returnByValue":true})).await?;
                 }
+                if found.len() < 4 {
+                    let id=next_id();
+                    media_probe_id=Some(id);
+                    send(&mut ws,id,Some(&session),"Runtime.evaluate",json!({"expression":"JSON.stringify(window.__pcMedia||[])","returnByValue":true})).await?;
+                }
             }
             m=ws.next()=>{
                 let Some(m)=m else {break;};let m=m?;let Ok(v)=serde_json::from_str::<Value>(m.to_text().unwrap_or("")) else {continue;};
@@ -425,6 +466,23 @@ async fn capture_session(
                         for kind in ["mousePressed","mouseReleased"] {
                             send(&mut ws,next_id(),Some(&session),"Input.dispatchMouseEvent",json!({"type":kind,"x":x,"y":y,"button":"left","clickCount":1})).await?;
                         }
+                    }
+                }
+                if v["id"].as_i64()==media_probe_id {
+                    media_probe_id=None;
+                    if let Some(list)=v["result"]["result"]["value"].as_str()
+                        && let Ok(items)=serde_json::from_str::<Vec<String>>(list) {
+                        for raw in items {
+                            if !seen.insert(raw.clone()) {continue;}
+                            if let Ok(u)=Url::parse(&raw) {
+                                let mut h=headers.clone();
+                                h.entry("referer".into()).or_insert(page.into());
+                                if mobile { h.insert("user-agent".into(), MOBILE_UA.into()); }
+                                if found.is_empty(){deadline=tokio::time::Instant::now()+Duration::from_secs(2);}
+                                found.push((u,h));
+                            }
+                        }
+                        if found.len()>=4 {break;}
                     }
                 }
                 match v["method"].as_str().unwrap_or("") {
@@ -747,6 +805,34 @@ mod tests {
         server.abort();
         let found = result.unwrap();
         assert_eq!(found.len(), 1);
+        assert_eq!(found[0].0.as_str(), format!("{address}/stream.m3u8"));
+    }
+
+    /// 清单地址只经过页面自己的解密、页面从未请求它时，也要能拿到。
+    #[tokio::test]
+    async fn catches_a_playlist_that_only_the_page_decrypts() {
+        let Some(config) = browser_config() else {
+            return;
+        };
+        let (address, server) = test_page(
+            r#"<script>
+                const payload = JSON.stringify({data:{video:{url: location.origin + '/stream.m3u8'}}});
+                const decrypted = decodeURIComponent(payload);
+                document.title = JSON.parse(decrypted).data.video.url;
+            </script>"#
+                .to_string(),
+            PLAYLIST,
+        )
+        .await;
+        let result = capture(
+            &config,
+            &format!("{address}/page"),
+            &BTreeMap::new(),
+            Duration::from_secs(40),
+        )
+        .await;
+        server.abort();
+        let found = result.unwrap();
         assert_eq!(found[0].0.as_str(), format!("{address}/stream.m3u8"));
     }
 
