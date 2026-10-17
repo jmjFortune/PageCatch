@@ -8,8 +8,12 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY web ./web
+# Source timestamps can be older than the artifacts kept in /build/target when the tree
+# is synced with rsync or copied from a share, and Cargo then silently skips recompiling
+# and embeds stale web assets. Bump the timestamps so a build always follows file contents.
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/build/target \
-    set -e; cargo test --lib --locked; \
+    set -e; find src web -type f -exec touch {} +; touch Cargo.toml Cargo.lock; \
+    cargo test --lib --locked; \
     target=$(cat /build-target); linker=$(cat /build-linker); \
     key=$(printf '%s' "$target" | tr '[:lower:]-' '[:upper:]_'); \
     env "CARGO_TARGET_${key}_LINKER=$linker" "CC=$linker" cargo build --release --locked --target "$target" && cp "target/$target/release/pagecatch" /build/pagecatch
