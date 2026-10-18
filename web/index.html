@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -9,81 +9,349 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
-<svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs><symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></symbol><symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4m-6 6-1 1a4 4 0 0 1-6-6l3-3a4 4 0 0 1 6 0m0 2 1-1a4 4 0 0 1 6 6l-3 3a4 4 0 0 1-6 0"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5h6l2 2h10v13H3Z"/></symbol><symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol><symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6"/></symbol><symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Zm3 6h6m-6 4h6m-6 4h4"/></symbol><symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol><symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 4v6h6M4 10a8 8 0 1 1 1 8"/></symbol><symbol id="i-workers" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a19 19 0 0 1 0 18 19 19 0 0 1 0-18"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-back" viewBox="0 0 24 24"><path d="m10 5-7 7 7 7M3 12h18"/></symbol><symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol><symbol id="i-video" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z"/><path d="m10 9 5 3-5 3Z"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol></defs></svg>
+<svg class="icon-defs" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="m10 13 4-4m-6 6-1 1a4 4 0 0 1-6-6l3-3a4 4 0 0 1 6 0m0 2 1-1a4 4 0 0 1 6 6l-3 3a4 4 0 0 1-6 0"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5h6l2 2h10v13H3Z"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M6 6a8 8 0 0 1 14 6M4 12a8 8 0 0 0 14 6"/></symbol>
+    <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Zm3 6h6m-6 4h6m-6 4h4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 4v6h6M4 10a8 8 0 1 1 1 8"/></symbol>
+    <symbol id="i-workers" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a19 19 0 0 1 0 18 19 19 0 0 1 0-18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="m10 5-7 7 7 7M3 12h18"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6Z"/><path d="m10 9 5 3-5 3Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18"/></symbol>
+    <symbol id="i-dead" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M5.5 5.5l13 13"/></symbol>
+  </defs>
+</svg>
+
 <div class="app-shell" id="app-shell">
   <aside class="sidebar" aria-label="Main navigation">
-    <div class="brand-row">
-      <a class="brand" id="brand" href="/" aria-label="PageCatch home"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span>PageCatch</span></a>
-      <button type="button" class="icon-button collapse-button" id="collapse-nav" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><svg class="icon" aria-hidden="true"><use href="#i-panel"/></svg></button>
+    <!-- macOS Traffic Lights decorative window controls -->
+    <div class="mac-traffic-lights" aria-hidden="true">
+      <span class="tl-dot tl-close" title="Close"></span>
+      <span class="tl-dot tl-min" title="Minimize"></span>
+      <span class="tl-dot tl-zoom" title="Zoom"></span>
     </div>
+
+    <div class="brand-row">
+      <a class="brand" id="brand" href="/" aria-label="PageCatch home">
+        <div class="brand-badge"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg></div>
+        <span>PageCatch</span>
+      </a>
+      <button type="button" class="icon-button collapse-button" id="collapse-nav" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar">
+        <svg class="icon" aria-hidden="true"><use href="#i-panel"/></svg>
+      </button>
+    </div>
+
     <nav class="nav-menu">
-      <button type="button" class="nav-button" id="nav-downloads" aria-current="page" aria-label="Downloads" title="Downloads"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><span class="nav-label">Downloads</span><span class="nav-count" id="nav-count" aria-hidden="true">0</span></button>
+      <button type="button" class="nav-button" id="nav-downloads" aria-current="page" aria-label="Downloads" title="Downloads">
+        <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+        <span class="nav-label" data-i18n="nav.downloads">Downloads</span>
+        <span class="nav-count" id="nav-count" aria-hidden="true">0</span>
+      </button>
+      <button type="button" class="nav-button" id="nav-settings" aria-label="Settings" title="Settings">
+        <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>
+        <span class="nav-label" data-i18n="nav.settings">Settings</span>
+      </button>
     </nav>
+
     <div class="sidebar-bottom">
-      <nav class="nav-menu"><button type="button" class="nav-button" id="nav-settings" aria-label="Settings" title="Settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg><span class="nav-label">Settings</span></button></nav>
-      <span class="sidebar-version" id="sidebar-version">PageCatch</span>
+      <!-- Apple Appearance & Language Quick Controls -->
+      <div class="sidebar-controls" aria-label="Quick controls">
+        <!-- Appearance switcher -->
+        <div class="pill-group theme-switcher" role="group" aria-label="Theme mode" title="Appearance: Auto / Light / Dark">
+          <button type="button" class="pill-btn" data-theme-val="auto" aria-pressed="true" title="Auto (System)">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-auto"/></svg>
+            <span class="pill-text">Auto</span>
+          </button>
+          <button type="button" class="pill-btn" data-theme-val="light" aria-pressed="false" title="Light mode">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-sun"/></svg>
+            <span class="pill-text">Light</span>
+          </button>
+          <button type="button" class="pill-btn" data-theme-val="dark" aria-pressed="false" title="Dark mode">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="#i-moon"/></svg>
+            <span class="pill-text">Dark</span>
+          </button>
+        </div>
+
+        <!-- Language toggle -->
+        <div class="pill-group lang-switcher" role="group" aria-label="Language selection" title="Language: 中文 / English">
+          <button type="button" class="pill-btn" data-lang-val="zh" aria-pressed="true">中文</button>
+          <button type="button" class="pill-btn" data-lang-val="en" aria-pressed="false">EN</button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <span class="sidebar-version" id="sidebar-version">PageCatch</span>
+        <span class="connection-status" id="sidebar-conn-status"></span>
+      </div>
     </div>
   </aside>
+
   <main class="main-content">
-    <div class="notice" id="notice" role="status" hidden><span id="notice-text"></span><button type="button" id="notice-settings" hidden>Access settings</button><button type="button" class="icon-button" id="dismiss-notice" aria-label="Dismiss notification" title="Dismiss notification"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <div class="notice" id="notice" role="status" hidden>
+      <div class="notice-indicator" aria-hidden="true"></div>
+      <span id="notice-text"></span>
+      <button type="button" id="notice-settings" hidden data-i18n="notice.accessSettings">Access settings</button>
+      <button type="button" class="icon-button notice-dismiss" id="dismiss-notice" aria-label="Dismiss notification" title="Dismiss notification">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </div>
+
+    <!-- Downloads Main View -->
     <section id="downloads-view" aria-labelledby="downloads-title">
-      <header class="page-header"><h1 id="downloads-title">Downloads</h1><div class="header-actions"><span class="connection" id="connection" role="status">Connecting</span><button type="button" class="primary" id="new-task"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>New Task</span></button></div></header>
-      <div class="task-toolbar"><div class="tabs" role="group" aria-label="Filter tasks"><button type="button" data-filter="all" aria-pressed="true">All <span class="tab-count" id="count-all">0</span></button><button type="button" data-filter="active" aria-pressed="false">Active <span class="tab-count" id="count-active" hidden>0</span></button><button type="button" data-filter="done" aria-pressed="false">Completed <span class="tab-count" id="count-done" hidden>0</span></button><button type="button" data-filter="fail" aria-pressed="false">Failed <span class="tab-count" id="count-fail" hidden>0</span></button></div><button type="button" class="icon-button" id="refresh" aria-label="Refresh tasks" title="Refresh"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button></div>
-      <div id="task-list" aria-live="off"><div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg><p>Loading tasks…</p></div></div>
+      <header class="page-header">
+        <div class="header-titles">
+          <h1 id="downloads-title" data-i18n="downloads.title">Downloads</h1>
+        </div>
+        <div class="header-actions">
+          <div class="connection-pill" id="connection-pill">
+            <span class="connection" id="connection" role="status">Connecting</span>
+          </div>
+          <button type="button" class="primary apple-btn" id="new-task">
+            <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>
+            <span data-i18n="toolbar.newTask">New Task</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- macOS Segmented Toolbar -->
+      <div class="task-toolbar">
+        <div class="tabs mac-segmented" role="group" aria-label="Filter tasks">
+          <button type="button" data-filter="all" aria-pressed="true">
+            <span data-i18n="filter.all">All</span> <span class="tab-count" id="count-all">0</span>
+          </button>
+          <button type="button" data-filter="active" aria-pressed="false">
+            <span data-i18n="filter.active">Active</span> <span class="tab-count" id="count-active" hidden>0</span>
+          </button>
+          <button type="button" data-filter="done" aria-pressed="false">
+            <span data-i18n="filter.completed">Completed</span> <span class="tab-count" id="count-done" hidden>0</span>
+          </button>
+          <button type="button" data-filter="fail" aria-pressed="false">
+            <span data-i18n="filter.failed">Failed</span> <span class="tab-count" id="count-fail" hidden>0</span>
+          </button>
+          <button type="button" data-filter="dead" aria-pressed="false">
+            <span data-i18n="filter.dead">Dead</span> <span class="tab-count" id="count-dead" hidden>0</span>
+          </button>
+        </div>
+        <button type="button" class="icon-button mac-refresh-btn" id="refresh" aria-label="Refresh tasks" title="Refresh">
+          <svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>
+        </button>
+      </div>
+
+      <!-- Task Inset Cards List -->
+      <div id="task-list" class="task-cards-list" aria-live="off">
+        <div class="empty">
+          <div class="empty-icon-wrap"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg></div>
+          <p data-i18n="empty.loading">Loading tasks…</p>
+        </div>
+      </div>
     </section>
+
+    <!-- Settings Main View -->
     <section id="settings-view" aria-labelledby="settings-title" hidden>
-      <header class="page-header"><h1 id="settings-title">Settings</h1><button type="button" class="icon-button" id="back-downloads" aria-label="Back to downloads" title="Back to downloads"><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button></header>
-      <div class="tabs settings-tabs" role="tablist" aria-label="Settings categories"><button type="button" id="tab-download" role="tab" data-setting="download" aria-controls="panel-download" aria-selected="true">Downloads</button><button type="button" id="tab-network" role="tab" data-setting="network" aria-controls="panel-network" aria-selected="false" tabindex="-1">Network</button><button type="button" id="tab-about" role="tab" data-setting="about" aria-controls="panel-about" aria-selected="false" tabindex="-1">About</button></div>
-      <section class="settings-panel" id="panel-download" role="tabpanel" aria-labelledby="tab-download">
+      <header class="page-header">
+        <div class="header-titles">
+          <h1 id="settings-title" data-i18n="settings.title">Settings</h1>
+        </div>
+        <button type="button" class="icon-button apple-circle-btn" id="back-downloads" aria-label="Back to downloads" title="Back to downloads">
+          <svg class="icon" aria-hidden="true"><use href="#i-back"/></svg>
+        </button>
+      </header>
+
+      <div class="tabs settings-tabs mac-segmented" role="tablist" aria-label="Settings categories">
+        <button type="button" id="tab-download" role="tab" data-setting="download" aria-controls="panel-download" aria-selected="true" data-i18n="settings.tabDownload">Downloads</button>
+        <button type="button" id="tab-network" role="tab" data-setting="network" aria-controls="panel-network" aria-selected="false" tabindex="-1" data-i18n="settings.tabNetwork">Network</button>
+        <button type="button" id="tab-about" role="tab" data-setting="about" aria-controls="panel-about" aria-selected="false" tabindex="-1" data-i18n="settings.tabAbout">About</button>
+      </div>
+
+      <!-- Settings Panel: Download -->
+      <section class="settings-panel mac-panel" id="panel-download" role="tabpanel" aria-labelledby="tab-download">
         <form id="download-form">
-        <div class="setting-row"><label for="output">Save location</label><div><div class="setting-value"><input id="output" required maxlength="4096" placeholder="Absolute path on the server" disabled><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg></div><span class="field-hint">Automatically saved in YYYY-MM-DD folders (UTC+8). In Docker, use a mounted path.</span></div></div>
-        <div class="setting-row"><label for="workers">Concurrent downloads</label><input class="number-setting" id="workers" type="number" min="1" max="8" step="1" required disabled></div>
-        <div class="setting-row"><label for="cpu_cores">CPU core limit</label><input class="number-setting" id="cpu_cores" type="number" min="1" step="1" required disabled></div>
-        <div class="setting-row"><label for="threads">Segment threads</label><input class="number-setting" id="threads" type="number" min="1" max="32" step="1" required disabled></div>
-        <div class="setting-row"><label for="retries">Maximum attempts</label><div><input class="number-setting" id="retries" type="number" min="1" max="10" step="1" required disabled><span class="field-hint">Includes the first attempt.</span></div></div>
-        <div class="setting-row" id="preview-row" hidden><span>Download mode</span><span class="readonly-value" id="preview">—</span></div>
-        <p class="panel-hint">Saved on the server. Other settings apply to new tasks.</p>
-        <div class="settings-actions"><p id="download-feedback" role="status" aria-live="polite"></p><button type="button" class="secondary" id="reset-download" disabled>Discard Changes</button><button type="submit" class="primary" id="save-download" disabled>Save Changes</button></div>
+          <div class="setting-group">
+            <div class="setting-row">
+              <label for="output" data-i18n="settings.outputLabel">Save location</label>
+              <div class="setting-value">
+                <input id="output" required maxlength="4096" placeholder="Absolute path on the server" disabled>
+                <svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="workers" data-i18n="settings.workersLabel">Concurrent downloads</label>
+              <input class="number-setting" id="workers" type="number" min="1" max="8" step="1" required disabled>
+            </div>
+            <div class="setting-row">
+              <label for="cpu_cores" data-i18n="settings.cpuLabel">CPU core limit</label>
+              <input class="number-setting" id="cpu_cores" type="number" min="1" step="1" required disabled>
+            </div>
+            <div class="setting-row">
+              <label for="threads" data-i18n="settings.threadsLabel">Segment threads</label>
+              <input class="number-setting" id="threads" type="number" min="1" max="32" step="1" required disabled>
+            </div>
+            <div class="setting-row">
+              <label for="retries" data-i18n="settings.retriesLabel">Maximum attempts</label>
+              <input class="number-setting" id="retries" type="number" min="1" max="10" step="1" required disabled>
+            </div>
+            <div class="setting-row" id="preview-row" hidden>
+              <span data-i18n="settings.previewLabel">Download mode</span>
+              <span class="readonly-value" id="preview">—</span>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <p id="download-feedback" role="status" aria-live="polite"></p>
+            <button type="button" class="secondary" id="reset-download" disabled data-i18n="actions.discard">Discard Changes</button>
+            <button type="submit" class="primary apple-btn" id="save-download" disabled data-i18n="actions.save">Save Changes</button>
+          </div>
         </form>
       </section>
-      <section class="settings-panel" id="panel-network" role="tabpanel" aria-labelledby="tab-network" hidden>
+
+      <!-- Settings Panel: Network -->
+      <section class="settings-panel mac-panel" id="panel-network" role="tabpanel" aria-labelledby="tab-network" hidden>
         <form id="network-form">
-          <div class="setting-row"><label for="token">Access token</label><input id="token" type="password" autocomplete="off" placeholder="Enter the token configured on the server"></div>
-          <div class="setting-row align-top"><label for="headers">Request headers<span class="field-hint">Cookie / Referer</span></label><textarea id="headers" rows="5" placeholder='{"Cookie":"…", "Referer":"https://example.com/"}' spellcheck="false"></textarea></div>
-          <p class="panel-hint">Token remembered in this browser. Headers kept for this tab only.</p>
-          <div class="settings-actions"><p id="network-feedback" role="status" aria-live="polite"></p><button type="button" class="secondary" id="reset-network" disabled>Discard Changes</button><button type="submit" class="primary" id="save-network" disabled>Save Changes</button></div>
+          <div class="setting-group">
+            <div class="setting-row">
+              <label for="token" data-i18n="settings.tokenLabel">Access token</label>
+              <input id="token" type="password" autocomplete="off" placeholder="Enter server token">
+            </div>
+            <div class="setting-row align-top">
+              <label for="headers" data-i18n="settings.headersLabel">Request headers</label>
+              <textarea id="headers" rows="5" placeholder='{"Cookie":"…", "Referer":"https://example.com/"}' spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <p id="network-feedback" role="status" aria-live="polite"></p>
+            <button type="button" class="secondary" id="reset-network" disabled data-i18n="actions.discard">Discard Changes</button>
+            <button type="submit" class="primary apple-btn" id="save-network" disabled data-i18n="actions.save">Save Changes</button>
+          </div>
         </form>
       </section>
-      <section class="settings-panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
-        <div class="setting-row"><span>Version</span><span class="readonly-value" id="version">—</span></div>
-        <div class="setting-row"><span>Server address</span><span class="readonly-value" id="service-address">—</span></div>
-        <div class="setting-row"><span>Download engine</span><span class="readonly-value">N_m3u8DL-RE</span></div>
-        <div class="setting-row"><span>Video processing</span><span class="readonly-value">FFmpeg</span></div>
-        <div class="setting-row"><span>Browser parsing</span><span class="readonly-value" id="browser">—</span></div>
+
+      <!-- Settings Panel: About -->
+      <section class="settings-panel mac-panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden>
+        <div class="setting-group">
+          <div class="setting-row">
+            <span data-i18n="about.version">Version</span>
+            <span class="readonly-value" id="version">—</span>
+          </div>
+          <div class="setting-row">
+            <span data-i18n="about.serverAddress">Server address</span>
+            <span class="readonly-value" id="service-address">—</span>
+          </div>
+          <div class="setting-row">
+            <span data-i18n="about.engine">Download engine</span>
+            <span class="readonly-value">N_m3u8DL-RE</span>
+          </div>
+          <div class="setting-row">
+            <span data-i18n="about.videoProcessing">Video processing</span>
+            <span class="readonly-value">FFmpeg / ffprobe</span>
+          </div>
+          <div class="setting-row">
+            <span data-i18n="about.browserParsing">Browser parsing</span>
+            <span class="readonly-value" id="browser">—</span>
+          </div>
+        </div>
       </section>
     </section>
   </main>
 </div>
-<dialog id="add-dialog" aria-labelledby="add-title">
+
+<!-- Modal Sheet: Add Task -->
+<dialog id="add-dialog" class="mac-sheet" aria-labelledby="add-title">
   <form id="add-form">
-    <div class="dialog-header"><h2 id="add-title">New Task</h2><button type="button" class="icon-button" data-close-dialog="add-dialog" aria-label="Close new task" title="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
-    <div class="input-header"><label for="urls" class="dialog-label">Video URLs</label><button type="button" class="secondary" id="import-file"><svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg><span>Import File</span></button></div>
+    <div class="dialog-header">
+      <div class="dialog-title-group">
+        <h2 id="add-title" data-i18n="dialog.addTitle">New Task</h2>
+      </div>
+      <button type="button" class="icon-button dialog-close-btn" data-close-dialog="add-dialog" aria-label="Close new task" title="Close">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+      </button>
+    </div>
+
+    <div class="input-header">
+      <label for="urls" class="dialog-label" data-i18n="dialog.urlsLabel">Video URLs</label>
+      <button type="button" class="secondary apple-pill-btn" id="import-file">
+        <svg class="icon" aria-hidden="true"><use href="#i-folder"/></svg>
+        <span data-i18n="dialog.importFile">Import File</span>
+      </button>
+    </div>
+
     <input type="file" id="url-file" accept=".txt,.csv,text/plain,text/csv" aria-label="Import URLs from TXT or CSV" hidden>
-    <textarea id="urls" rows="6" placeholder="Paste URLs or chat history" aria-describedby="url-hint url-count" required autofocus spellcheck="false"></textarea>
-    <div class="input-meta"><span id="url-hint">TXT / CSV · Up to 1 MB · Review before adding</span><span id="url-count" aria-live="polite">0 / 200 URLs</span></div>
+
+    <div class="drop-target-area" id="drop-target">
+      <textarea id="urls" rows="6" placeholder="Paste URLs or chat history (http:// or https://)" aria-describedby="url-count" required autofocus spellcheck="false"></textarea>
+      <div class="drop-hint" id="drop-hint">
+        <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+        <span data-i18n="dialog.dropHint">Drop TXT or CSV here to import</span>
+      </div>
+    </div>
+
+    <div class="input-meta">
+      <span class="meta-spacer"></span>
+      <span id="url-count" aria-live="polite">0 / 200 URLs</span>
+    </div>
+
     <p id="add-feedback" class="form-feedback" role="status" aria-live="polite"></p>
-    <div class="dialog-actions"><button type="button" class="secondary" data-close-dialog="add-dialog">Cancel</button><button type="submit" class="primary" id="submit"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span>Add to Queue</span></button></div>
+
+    <div class="dialog-actions">
+      <button type="button" class="secondary" data-close-dialog="add-dialog" data-i18n="actions.cancel">Cancel</button>
+      <button type="submit" class="primary apple-btn" id="submit">
+        <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>
+        <span data-i18n="dialog.addToQueue">Add to Queue</span>
+      </button>
+    </div>
   </form>
 </dialog>
-<dialog id="log-dialog" class="log-dialog" aria-labelledby="log-title"><div class="dialog-header"><h2 id="log-title">Task Logs</h2><button type="button" class="icon-button" data-close-dialog="log-dialog" aria-label="Close logs" title="Close"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div><pre id="log-content">Loading logs…</pre></dialog>
-<dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+
+<!-- Modal Sheet: Logs -->
+<dialog id="log-dialog" class="mac-sheet log-dialog" aria-labelledby="log-title">
+  <div class="dialog-header">
+    <div class="dialog-title-group">
+      <h2 id="log-title" data-i18n="dialog.logTitle">Task Logs</h2>
+    </div>
+    <button type="button" class="icon-button dialog-close-btn" data-close-dialog="log-dialog" aria-label="Close logs" title="Close">
+      <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+  </div>
+  <div class="mac-terminal-window">
+    <div class="terminal-bar">
+      <span class="term-dot term-red"></span>
+      <span class="term-dot term-yellow"></span>
+      <span class="term-dot term-green"></span>
+      <span class="term-title">Console Output</span>
+    </div>
+    <pre id="log-content">Loading logs…</pre>
+  </div>
+</dialog>
+
+<!-- Modal Sheet: Delete Record -->
+<dialog id="delete-dialog" class="mac-sheet alert-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
   <form id="delete-form">
-    <div class="dialog-header"><h2 id="delete-title">Delete record?</h2></div>
-    <p class="dialog-label" id="delete-name"></p>
-    <p id="delete-description">Remove this task from the list? Video files will be kept.</p>
+    <div class="dialog-header">
+      <div class="dialog-title-group">
+        <h2 id="delete-title" data-i18n="dialog.deleteTitle">Delete record?</h2>
+      </div>
+    </div>
+    <p class="dialog-label highlight-name" id="delete-name"></p>
+    <p id="delete-description" data-i18n="dialog.deleteDesc">Remove this task from the list? Video files will be kept.</p>
     <p id="delete-feedback" class="form-feedback" role="status" aria-live="polite"></p>
-    <div class="dialog-actions"><button type="button" class="secondary" id="cancel-delete">Cancel</button><button type="submit" class="danger" id="confirm-delete">Delete Record</button></div>
+    <div class="dialog-actions">
+      <button type="button" class="secondary" id="cancel-delete" data-i18n="actions.cancel">Cancel</button>
+      <button type="submit" class="danger apple-danger-btn" id="confirm-delete" data-i18n="dialog.confirmDelete">Delete Record</button>
+    </div>
   </form>
 </dialog>
+
 </body>
 </html>
