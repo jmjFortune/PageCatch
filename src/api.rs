@@ -51,6 +51,42 @@ pub fn router(q: Arc<Queue>) -> Router {
                 )
             }),
         )
+        .route(
+            "/favicon.svg",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/favicon.svg"),
+                )
+            }),
+        )
+        .route(
+            "/icon.svg",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/icon.svg"),
+                )
+            }),
+        )
+        .route(
+            "/favicon.ico",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/favicon.svg"),
+                )
+            }),
+        )
+        .route(
+            "/icon-180.png",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/png")],
+                    &include_bytes!("../web/icon-180.png")[..],
+                )
+            }),
+        )
         .route("/healthz", get(|| async { Json(json!({"status":"ok"})) }))
         .nest(
             "/api",

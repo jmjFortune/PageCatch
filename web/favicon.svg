@@ -1,0 +1,11 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PageCatch">
+  <defs>
+    <linearGradient id="pc-icon-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D9BFF"/><stop offset="1" stop-color="#0062C4"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#pc-icon-bg)"/>
+  <rect x="7" y="7" width="498" height="498" rx="109" fill="none" stroke="#fff" stroke-opacity="0.22" stroke-width="7"/>
+  <path d="M356 356A128 128 0 1 1 356 156" fill="none" stroke="#fff" stroke-width="48" stroke-linecap="round"/>
+  <path d="M238 206L238 306L326 256Z" fill="#fff" stroke="#fff" stroke-width="26" stroke-linejoin="round"/>
+</svg>

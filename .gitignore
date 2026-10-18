@@ -47,4 +47,3 @@ node_modules/
 
 tests/
 .superpowers/
-preview-server.cjs
