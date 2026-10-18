@@ -140,6 +140,21 @@ const MEDIA_HOOK_JS: &str = r#"(() => {
   }
 })();"#;
 
+/// 打开浏览器和连接调试端口大约要这么久，每次尝试都要把它算进去。
+const BROWSER_STARTUP: Duration = Duration::from_secs(20);
+/// 少于这么久就没必要再开一次浏览器。
+const MIN_ATTEMPT: Duration = Duration::from_secs(10);
+
+/// 每次尝试能用多少时间：给浏览器启动和收尾留出余量，小预算时按比例缩小，免得
+/// 两次尝试连启动开销一起超出预算——那样外层总时限会先到，把已经查到的真实原因
+/// 掐成一句“Parsing exceeded … seconds”。
+fn attempt_within(remaining: Duration, mobile: bool) -> Option<Duration> {
+    let slack = BROWSER_STARTUP.min(remaining / 6);
+    let usable = remaining.saturating_sub(slack);
+    let share = if mobile { usable } else { usable / 2 };
+    (share >= MIN_ATTEMPT).then_some(share)
+}
+
 /// 先按桌面身份解析，页面没有给出媒体请求时再用手机身份重试一次：只给
 /// 桌面浏览器跳搜索引擎的站点必须走这条路。两次尝试共用调用方给的时间
 /// 预算，避免第一次把全部时间用掉。
@@ -151,17 +166,16 @@ pub async fn capture(
 ) -> Result<Vec<(Url, BTreeMap<String, String>)>> {
     executable(config)
         .context("Chrome/Chromium not found. Install a browser or set PC_BROWSER.")?;
+    // 留一点余量给收尾和上报：两次尝试用满预算时，外层总时限不该抢先掐断。
+    let budget = budget.saturating_sub(Duration::from_secs(10));
     let started = tokio::time::Instant::now();
     let mut reasons = Vec::new();
     for mobile in [false, true] {
-        let remaining = budget.saturating_sub(started.elapsed());
-        if remaining < Duration::from_secs(15) {
+        let Some(within) = attempt_within(budget.saturating_sub(started.elapsed()), mobile) else {
             break;
-        }
-        // 桌面尝试先用一半，保证手机重试一定跑得上。
-        let share = if mobile { remaining } else { remaining / 2 };
+        };
         let label = if mobile { "Mobile" } else { "Desktop" };
-        match capture_once(config, page, headers, mobile, share).await {
+        match capture_once(config, page, headers, mobile, within).await {
             Ok(CaptureResult::Media(found)) => return Ok(found),
             Ok(CaptureResult::MobileOnly) => reasons.push(format!(
                 "{label}: the page asks for a mobile browser, but no playlist appeared"
@@ -222,7 +236,7 @@ async fn capture_once(
     }
     let mut child = cmd.spawn().context("Could not start Chromium")?;
     // 会话自己按 within 收敛；这层只兜住浏览器连不上之类的不返回。
-    let hard = within + Duration::from_secs(20);
+    let hard = within + BROWSER_STARTUP;
     let result = tokio::time::timeout(
         hard,
         capture_session(profile.path(), &mut child, page, headers, mobile, within),
@@ -672,6 +686,27 @@ mod tests {
         let mut config = Config::parse_from(["pagecatch"]);
         config.browser_no_sandbox = cfg!(target_os = "linux");
         executable(&config).map(|_| config)
+    }
+
+    #[test]
+    fn both_browser_attempts_fit_the_budget() {
+        for budget in [
+            Duration::from_secs(250),
+            Duration::from_secs(60),
+            Duration::from_secs(40),
+        ] {
+            let desktop = attempt_within(budget, false).expect("预算够时必须开桌面尝试");
+            // 桌面用掉自己的份额（+约 3 秒启动）后，手机重试仍要开得起来。
+            let mobile = attempt_within(budget - desktop - Duration::from_secs(3), true)
+                .expect("预算够时手机重试必须开得起来");
+            assert!(
+                desktop + mobile + Duration::from_secs(6) <= budget,
+                "{budget:?} 装不下两次尝试，真实原因会被外层总时限掐掉"
+            );
+        }
+        // 余量太少就不再开新的一次：桌面分不到，手机也分不到。
+        assert_eq!(attempt_within(Duration::from_secs(20), false), None);
+        assert_eq!(attempt_within(Duration::from_secs(10), true), None);
     }
 
     #[tokio::test]
