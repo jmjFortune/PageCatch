@@ -131,7 +131,18 @@ impl Store {
         bytes: u64,
         output: Option<&str>,
     ) -> anyhow::Result<()> {
-        self.0.lock().unwrap().execute("UPDATE tasks SET status=?,message=?,updated=?,attempt=?,bytes=?,output=? WHERE id=? AND status!='cancelled'",params![status,msg,now(),attempt,bytes,output,id])?;
+        // 终态时顺手清掉“重试来源”：它只在任务还活着、可能被取消时才需要。
+        // 注意不能在每次更新时都清——重试后第一步就会把来源洗掉，取消就回不到原分类了。
+        let terminal = matches!(status, "ok" | "duplicate" | "fail" | "dead" | "cancelled");
+        let sql = if terminal {
+            "UPDATE tasks SET status=?,message=?,updated=?,attempt=?,bytes=?,output=?,retry_from=NULL,retry_message=NULL WHERE id=? AND status!='cancelled'"
+        } else {
+            "UPDATE tasks SET status=?,message=?,updated=?,attempt=?,bytes=?,output=? WHERE id=? AND status!='cancelled'"
+        };
+        self.0
+            .lock()
+            .unwrap()
+            .execute(sql, params![status, msg, now(), attempt, bytes, output, id])?;
         Ok(())
     }
     /// 取消：人工从 `fail`/`dead` 重试过来的任务回到原状态，连原失败原因一起还原；
@@ -177,7 +188,7 @@ impl Store {
             .lock()
             .unwrap()
             .execute(
-                "UPDATE tasks SET status='dead',message='Marked as dead',updated=? WHERE id=? AND status='fail'",
+                "UPDATE tasks SET status='dead',message='Marked as dead',updated=?,retry_from=NULL,retry_message=NULL WHERE id=? AND status='fail'",
                 params![now(), id],
             )?
             > 0)
@@ -237,6 +248,30 @@ mod tests {
         s.update(id, "ok", "late result", 1, 0, None).unwrap();
         assert_eq!(s.get(id).unwrap().unwrap().status, "cancelled");
         assert!(s.retry(id).unwrap());
+    }
+    #[test]
+    fn terminal_updates_drop_the_retry_origin() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("db");
+        let s = Store::open(&path).unwrap();
+        let h = BTreeMap::new();
+        let id = s.add("https://example.com/play?a=1", &h).unwrap().unwrap();
+        let columns = |path: &Path| -> (Option<String>, Option<String>) {
+            let db = Connection::open(path).unwrap();
+            db.query_row(
+                "SELECT retry_from,retry_message FROM tasks WHERE id=1",
+                [],
+                |r| Ok((r.get(0).unwrap(), r.get(1).unwrap())),
+            )
+            .unwrap()
+        };
+        s.update(id, "fail", "boom", 3, 0, None).unwrap();
+        assert!(s.retry(id).unwrap());
+        // 任务还活着：来源要留着，取消才有得还原。
+        assert_eq!(columns(&path), (Some("fail".into()), Some("boom".into())));
+        // 进入终态后就没用了，顺手清掉，别留过期数据。
+        s.update(id, "ok", "done", 1, 0, None).unwrap();
+        assert_eq!(columns(&path), (None, None));
     }
     #[test]
     fn failed_tasks_move_to_dead_and_only_come_back_by_hand() {
