@@ -295,7 +295,7 @@ impl Queue {
             bytes,
             None,
         )?;
-        let (duration, verify_note) = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, task.id, &file.path, media.duration, file.missing_segments)=>r? };
+        let (duration, verify_notes) = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, task.id, &file.path, media.duration, file.missing_segments)=>r? };
         anyhow::ensure!(!cancel.is_cancelled(), "Cancelled");
         let suffix = if config.preview_segments.is_some() {
             "_preview"
@@ -316,7 +316,7 @@ impl Queue {
                 " · {missing} of {total} segments missing, saved as-is"
             ));
         }
-        if let Some(verify_note) = verify_note {
+        for verify_note in verify_notes {
             note.push_str(" · ");
             note.push_str(&verify_note);
         }

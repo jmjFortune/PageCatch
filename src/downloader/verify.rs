@@ -65,19 +65,29 @@ pub async fn verify(
     path: &Path,
     expected: Option<f64>,
     missing: Option<(u64, u64)>,
-) -> Result<(f64, Option<String>)> {
+) -> Result<(f64, Vec<String>)> {
     anyhow::ensure!(
         tokio::fs::metadata(path).await?.len() > 1024,
         "The output file is too small"
     );
     let duration = probe(config, path).await?;
+    let mut notes = Vec::new();
     if config.preview_segments.is_none()
         && let Some(expected) = expected
     {
+        // 只卡“比列表少”：少说明内容缺失。比列表多通常是源站尾部时间戳虚高
+        // （例如最后一个分片声明 1.8 秒却带出 90 秒），内容并不缺，整片也能播；
+        // 真正的把关在下面的解码校验。所以这里放行，但把超出量记进说明。
         anyhow::ensure!(
-            (duration - expected).abs() <= duration_slack(expected, missing),
+            duration + duration_slack(expected, missing) >= expected,
             "Output duration {duration:.2}s does not match the source playlist duration {expected:.2}s"
         );
+        let extra = duration - expected;
+        if extra > duration_slack(expected, missing) {
+            notes.push(format!(
+                "the source runs {extra:.0} s longer than its playlist declares"
+            ));
+        }
     }
     let o = run(
         Command::new(&config.ffmpeg)
@@ -89,7 +99,7 @@ pub async fn verify(
     .await?;
     let stderr = String::from_utf8_lossy(&o.stderr);
     if o.status.success() && stderr.is_empty() {
-        return Ok((duration, None));
+        return Ok((duration, notes));
     }
     let success = o.status.success();
     // 取证：损坏是不是只在结尾（源站最后一个分片被截断）。时间戳提示那类不必取证。
@@ -111,7 +121,8 @@ pub async fn verify(
             None => "kept as-is with a timestamp warning".to_owned(),
         };
         super::append_log(config, id, &format!("Strict decoding verification: {note}"));
-        return Ok((duration, Some(note)));
+        notes.push(note);
+        return Ok((duration, notes));
     }
     anyhow::bail!(
         "Strict decoding verification failed: {}",
@@ -284,13 +295,13 @@ mod tests {
         // 1) 尾部被截断：救回来，并说明丢掉了结尾多少秒。
         let cut = dir.path().join("cut.mp4");
         std::fs::write(&cut, &bytes[..bytes.len() - 3000]).unwrap();
-        let (duration, note) = verify(&config, 1, &cut, None, None)
+        let (duration, notes) = verify(&config, 1, &cut, None, None)
             .await
             .expect("结尾截断应该被救回");
         assert!(duration > 0.0);
         assert!(
-            note.unwrap_or_default().contains("last"),
-            "说明里要写清楚丢的是结尾"
+            notes.iter().any(|n| n.contains("last")),
+            "说明里要写清楚丢的是结尾：{notes:?}"
         );
 
         // 2) 坏在片中：不是结尾的问题，照旧判失败。
@@ -302,6 +313,67 @@ mod tests {
         assert!(
             verify(&config, 2, &mid, None, None).await.is_err(),
             "坏在片中的成品不该被放行"
+        );
+    }
+    #[tokio::test]
+    async fn a_longer_than_declared_file_is_kept_but_a_shortfall_is_not() {
+        if std::process::Command::new("ffmpeg")
+            .arg("-version")
+            .output()
+            .is_err()
+        {
+            return; // 没装 ffmpeg 就跳过（镜像构建阶段就是这种情形）
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("whole.mp4");
+        let made = std::process::Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=size=160x120:rate=25:duration=12",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                "-shortest",
+            ])
+            .arg(&file)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !made {
+            return;
+        }
+        let mut config = Config::parse_from(["pagecatch"]);
+        config.ffmpeg = "ffmpeg".into();
+        config.ffprobe = "ffprobe".into();
+        config.data = dir.path().to_path_buf();
+
+        // 源站把时长报小了（成品比列表长）：内容不缺，保留并把超出量写进说明。
+        let (duration, notes) = verify(&config, 1, &file, Some(5.0), None)
+            .await
+            .expect("成品比列表长不该判失败");
+        assert!(duration > 11.0);
+        assert!(
+            notes.iter().any(|n| n.contains("longer than its playlist")),
+            "说明里要写清楚比列表长多少：{notes:?}"
+        );
+
+        // 成品比列表短太多：内容可能缺失，照旧判失败。
+        assert!(
+            verify(&config, 2, &file, Some(30.0), None).await.is_err(),
+            "比列表短太多不该放行"
         );
     }
     #[test]
