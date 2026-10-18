@@ -213,7 +213,7 @@ async fn resolve_inner(
         {
             Ok(r) => r,
             Err(e) => {
-                errors.push(e.to_string());
+                errors.push(format!("{e:#}"));
                 continue;
             }
         };
@@ -227,7 +227,7 @@ async fn resolve_inner(
         let body = match body_limited(response).await {
             Ok(b) => b,
             Err(e) => {
-                errors.push(e.to_string());
+                errors.push(format!("{e:#}"));
                 continue;
             }
         };
@@ -248,7 +248,7 @@ async fn resolve_inner(
                     r.headers = context_headers(input, &page_ref, &jar, &r.url);
                     return Ok(r);
                 }
-                Err(e) => errors.push(e.to_string()),
+                Err(e) => errors.push(format!("{e:#}")),
             }
         }
         if depth < 2 {
@@ -285,7 +285,7 @@ async fn resolve_inner(
             for (u, h) in found {
                 match validate(&client, u, h).await {
                     Ok(r) => return Ok(r),
-                    Err(e) => errors.push(e.to_string()),
+                    Err(e) => errors.push(format!("{e:#}")),
                 }
             }
         }

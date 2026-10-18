@@ -159,10 +159,20 @@ mod tests {
     }
     #[test]
     fn an_unresolvable_host_stops_the_retries() {
+        // 解析器现在会把错误链带上（`{e:#}`），真实文本长这样——补救表就靠这层原因判断。
         assert!(matches!(
             choose(Failure::Message(
-                "No valid media playlist found. error sending request for url (https://x/y.m3u8): \
-                 error trying to connect: dns error: failed to lookup address information"
+                "No valid media playlist found. error sending request for url \
+                 (https://xhspp.sdzxhq.com/20250622/9bmlaWfI/index.m3u8): error trying to \
+                 connect: dns error: failed to lookup address information: Name or service not known"
+            )),
+            Remedy::Stop(_)
+        ));
+        assert!(matches!(
+            choose(Failure::Message(
+                "No valid media playlist found. Browser parsing: Desktop: No media requests \
+                 detected after loading the page. Media candidates failed: \
+                 https://x.example/a.m3u8 (net::ERR_NAME_NOT_RESOLVED)"
             )),
             Remedy::Stop(_)
         ));
