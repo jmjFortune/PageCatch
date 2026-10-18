@@ -59,6 +59,7 @@ pub fn router(q: Arc<Queue>) -> Router {
                 .route("/tasks/{id}", axum::routing::delete(delete))
                 .route("/tasks/{id}/cancel", post(cancel))
                 .route("/tasks/{id}/retry", post(retry))
+                .route("/tasks/{id}/dead", post(mark_dead))
                 .route("/tasks/{id}/log", get(log))
                 .route("/info", get(info))
                 .route("/settings", get(settings).put(save_settings))
@@ -174,9 +175,21 @@ async fn retry(
     Path(id): Path<i64>,
 ) -> Result<impl IntoResponse, Error> {
     if !q.retry(id).map_err(error)? {
-        return Err(error("Only failed or cancelled tasks can be retried"));
+        return Err(error("Only failed, cancelled or dead tasks can be retried"));
     }
     Ok(Json(json!({"ok":true})))
+}
+/// 人工把失败任务移入失效死链分类：dead 不会被自动重跑，只能人工重试。
+async fn mark_dead(
+    State(q): State<Arc<Queue>>,
+    Path(id): Path<i64>,
+) -> Result<impl IntoResponse, Error> {
+    if !q.mark_dead(id).map_err(error)? {
+        return Err(error("Task not found or task is not in failed status"));
+    }
+    Ok(Json(
+        json!({"id":id,"status":"dead","message":"Marked as dead"}),
+    ))
 }
 async fn delete(
     State(q): State<Arc<Queue>>,

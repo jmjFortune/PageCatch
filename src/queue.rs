@@ -106,6 +106,15 @@ impl Queue {
         );
         self.store.retry(id)
     }
+    /// 人工把失败任务标记为失效死链。dead 不会被调度器自动重跑，只能人工 retry。
+    pub fn mark_dead(&self, id: i64) -> anyhow::Result<bool> {
+        let runtime = self.runtime.lock().unwrap();
+        anyhow::ensure!(
+            !runtime.active.contains_key(&id),
+            "Task is still running or stopping. Wait before marking it dead."
+        );
+        self.store.mark_dead(id)
+    }
     pub fn delete(&self, id: i64) -> anyhow::Result<bool> {
         let runtime = self.runtime.lock().unwrap();
         anyhow::ensure!(

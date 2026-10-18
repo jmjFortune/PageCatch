@@ -133,7 +133,20 @@ impl Store {
         Ok(self.0.lock().unwrap().execute("UPDATE tasks SET status='cancelled',message='Cancelled',updated=? WHERE id=? AND status IN ('pending','resolving','downloading','verifying')",params![now(),id])?>0)
     }
     pub fn retry(&self, id: i64) -> anyhow::Result<bool> {
-        Ok(self.0.lock().unwrap().execute("UPDATE tasks SET status='pending',message='Requeued',updated=?,attempt=0,bytes=0,output=NULL WHERE id=? AND status IN ('fail','cancelled')",params![now(),id])?>0)
+        Ok(self.0.lock().unwrap().execute("UPDATE tasks SET status='pending',message='Requeued',updated=?,attempt=0,bytes=0,output=NULL WHERE id=? AND status IN ('fail','cancelled','dead')",params![now(),id])?>0)
+    }
+    /// 人工把失败任务归入失效死链：只有 fail 能转，转完调度器不会再碰它，
+    /// 除非人工重试（`retry` 允许 dead 回到 pending）。
+    pub fn mark_dead(&self, id: i64) -> anyhow::Result<bool> {
+        Ok(self
+            .0
+            .lock()
+            .unwrap()
+            .execute(
+                "UPDATE tasks SET status='dead',message='Marked as dead',updated=? WHERE id=? AND status='fail'",
+                params![now(), id],
+            )?
+            > 0)
     }
     pub fn delete(&self, id: i64) -> anyhow::Result<bool> {
         use rusqlite::OptionalExtension;
@@ -173,5 +186,24 @@ mod tests {
         s.update(id, "ok", "late result", 1, 0, None).unwrap();
         assert_eq!(s.get(id).unwrap().unwrap().status, "cancelled");
         assert!(s.retry(id).unwrap());
+    }
+    #[test]
+    fn failed_tasks_move_to_dead_and_only_come_back_by_hand() {
+        let d = tempfile::tempdir().unwrap();
+        let s = Store::open(&d.path().join("db")).unwrap();
+        let h = BTreeMap::new();
+        let id = s.add("https://example.com/play?a=1", &h).unwrap().unwrap();
+        // 只有失败的记录才能被标记为死链。
+        assert!(!s.mark_dead(id).unwrap());
+        s.update(id, "fail", "No valid media playlist found", 3, 0, None)
+            .unwrap();
+        assert!(s.mark_dead(id).unwrap());
+        assert_eq!(s.get(id).unwrap().unwrap().status, "dead");
+        // 调度器只认 pending：死链不会被自动重跑。
+        assert!(s.claim().unwrap().is_none());
+        // 人工重试把它放回 pending。
+        assert!(s.retry(id).unwrap());
+        assert_eq!(s.get(id).unwrap().unwrap().status, "pending");
+        assert!(s.claim().unwrap().is_some());
     }
 }
