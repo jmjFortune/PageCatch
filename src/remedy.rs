@@ -13,13 +13,29 @@
 
 use std::sync::LazyLock;
 
+/// 判为「再重试也不会变」的失败。队列据此停止退避重试；用类型而不是文本传递，
+/// 免得两边靠字符串约定耦合。
+#[derive(Debug)]
+pub struct Fatal(pub &'static str);
+impl std::fmt::Display for Fatal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::error::Error for Fatal {}
+
 /// 判定补救所需的最少信息。
 #[derive(Debug)]
 pub enum Failure<'a> {
     /// 下载引擎失败：`log` 是本次尝试追加的那段日志。
     Engine(&'a str),
-    /// 严格解码校验：`success` 是退出码，`stderr` 是它的输出。
-    Decode { success: bool, stderr: &'a str },
+    /// 严格解码校验：`success` 是退出码，`stderr` 是它的输出，`tail_damage` 是
+    /// 「丢掉结尾若干秒就能解码干净」的秒数（调用方先取证，坏在哪儿由这里判定）。
+    Decode {
+        success: bool,
+        stderr: &'a str,
+        tail_damage: Option<f64>,
+    },
     /// 一次尝试的整体失败信息（解析、下载、校验都会走到这里）。
     Message(&'a str),
 }
@@ -48,8 +64,16 @@ fn dns_failure(error: &str) -> bool {
         || error.contains("ERR_NAME_NOT_RESOLVED")
         || error.contains("Name or service not known")
 }
+/// 引擎连播放列表都没拿到就被拒（403/404/410）：地址本身已失效，签名再新也没用
+/// ——换一次重试只会拿到同样被拒的地址。分片级的 403/404 不算，那时列表已经解析过。
+fn playlist_refused(log: &str) -> bool {
+    let refused = ["403 (Forbidden)", "404 (Not Found)", "410 (Gone)"]
+        .iter()
+        .any(|code| log.contains(code));
+    refused && !log.contains("Extracted, there are")
+}
 /// 空行之外，只剩时间戳提示：解码本身没有出错。
-fn only_timestamp_warnings(stderr: &str) -> bool {
+pub fn only_timestamp_warnings(stderr: &str) -> bool {
     let mut lines = stderr
         .lines()
         .filter(|line| !line.trim().is_empty())
@@ -74,13 +98,19 @@ impl Remedy {
 }
 pub fn choose(failure: Failure<'_>) -> Remedy {
     match failure {
-        Failure::Decode { success, stderr } => {
+        Failure::Decode {
+            success,
+            stderr,
+            tail_damage,
+        } => {
             if success && only_timestamp_warnings(stderr) {
                 Remedy::KeepAsIs
-            } else if success {
-                // 退出码 0，但有认不出来的输出：当成真正的解码问题，重下可能拿到干净的。
-                Remedy::RetryLater
+            } else if tail_damage.is_some() {
+                // 损坏只在结尾（源站最后一个分片被截断）：整片可播，丢掉结尾几秒
+                // 比整条失败划算。
+                Remedy::KeepAsIs
             } else {
+                // 其余解码失败（退出码非 0、或坏在片中）：重下可能拿到干净的。
                 Remedy::RetryLater
             }
         }
@@ -96,6 +126,9 @@ pub fn choose(failure: Failure<'_>) -> Remedy {
                 } else {
                     Remedy::RetryLater
                 }
+            }
+            None if playlist_refused(log) => {
+                Remedy::Stop("The playlist address is dead: the server refuses it (403/404)")
             }
             // 认不出来的引擎失败：网络、鉴权、解密、超时都可能，值得按退避再试。
             None => Remedy::RetryLater,
@@ -138,24 +171,61 @@ mod tests {
         assert_eq!(
             choose(Failure::Decode {
                 success: true,
-                stderr: warning
+                stderr: warning,
+                tail_damage: None
             }),
             Remedy::KeepAsIs
         );
         assert_eq!(
             choose(Failure::Decode {
                 success: true,
-                stderr: &format!("{warning}[h264 @ 0x1] Invalid NAL unit size\n")
+                stderr: &format!("{warning}[h264 @ 0x1] Invalid NAL unit size\n"),
+                tail_damage: None
             }),
             Remedy::RetryLater
         );
         assert_eq!(
             choose(Failure::Decode {
                 success: false,
-                stderr: warning
+                stderr: warning,
+                tail_damage: None
             }),
             Remedy::RetryLater
         );
+    }
+    #[test]
+    fn damage_confined_to_the_tail_keeps_the_video() {
+        // 源站最后一个分片被截断：丢掉结尾几秒能解码干净，就保留整片。
+        let aac = "[aac @ 0x55] Input buffer exhausted before END element found\n";
+        assert_eq!(
+            choose(Failure::Decode {
+                success: false,
+                stderr: aac,
+                tail_damage: Some(5.0)
+            }),
+            Remedy::KeepAsIs
+        );
+        // 取证说坏的地方不止结尾，就照旧重试。
+        assert_eq!(
+            choose(Failure::Decode {
+                success: false,
+                stderr: aac,
+                tail_damage: None
+            }),
+            Remedy::RetryLater
+        );
+    }
+    #[test]
+    fn a_refused_playlist_stops_the_retries() {
+        // 引擎连列表都没拿到就被拒：地址已失效，换新签名也一样。
+        let log = "Loading URL: https://cdn.example/a/index.m3u8?sign=x\n\
+                   WARN : Response status code does not indicate success: 403 (Forbidden). (10/10)\n";
+        assert!(matches!(choose(Failure::Engine(log)), Remedy::Stop(_)));
+        // 分片级的 403 不算这一类：列表已经解析过了，重试可能有用。
+        let segments = "Loading URL: https://cdn.example/a/index.m3u8\n\
+                        INFO : Extracted, there are 1 streams\n\
+                        WARN : Response status code does not indicate success: 403 (Forbidden).\n";
+        assert_eq!(choose(Failure::Engine(segments)), Remedy::RetryLater);
     }
     #[test]
     fn an_unresolvable_host_stops_the_retries() {

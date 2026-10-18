@@ -65,7 +65,7 @@ pub async fn verify(
     path: &Path,
     expected: Option<f64>,
     missing: Option<(u64, u64)>,
-) -> Result<(f64, bool)> {
+) -> Result<(f64, Option<String>)> {
     anyhow::ensure!(
         tokio::fs::metadata(path).await?.len() > 1024,
         "The output file is too small"
@@ -89,25 +89,56 @@ pub async fn verify(
     .await?;
     let stderr = String::from_utf8_lossy(&o.stderr);
     if o.status.success() && stderr.is_empty() {
-        return Ok((duration, false));
+        return Ok((duration, None));
     }
-    match crate::remedy::choose(crate::remedy::Failure::Decode {
-        success: o.status.success(),
+    let success = o.status.success();
+    // 取证：损坏是不是只在结尾（源站最后一个分片被截断）。时间戳提示那类不必取证。
+    let tail_damage = if success && crate::remedy::only_timestamp_warnings(&stderr) {
+        None
+    } else {
+        tail_damage_seconds(config, path, duration).await?
+    };
+    let choice = crate::remedy::choose(crate::remedy::Failure::Decode {
+        success,
         stderr: &stderr,
-    }) {
-        crate::remedy::Remedy::KeepAsIs => {
-            super::append_log(
-                config,
-                id,
-                "Strict decoding verification found only a timestamp warning; keeping the video as-is",
-            );
-            Ok((duration, true))
-        }
-        _ => anyhow::bail!(
-            "Strict decoding verification failed: {}",
-            stderr.chars().take(600).collect::<String>()
-        ),
+        tail_damage,
+    });
+    if choice == crate::remedy::Remedy::KeepAsIs {
+        let note = match tail_damage {
+            Some(seconds) => {
+                format!("the source is truncated; kept everything but the last {seconds:.0} s")
+            }
+            None => "kept as-is with a timestamp warning".to_owned(),
+        };
+        super::append_log(config, id, &format!("Strict decoding verification: {note}"));
+        return Ok((duration, Some(note)));
     }
+    anyhow::bail!(
+        "Strict decoding verification failed: {}",
+        stderr.chars().take(600).collect::<String>()
+    )
+}
+/// 解码失败时取证：源站最后一个分片被截断是常见缺陷；“丢掉结尾若干秒就能解码干净”
+/// 说明坏的地方局限在尾部，整片保下来比整条失败划算。返回丢掉的秒数。
+async fn tail_damage_seconds(config: &Config, path: &Path, duration: f64) -> Result<Option<f64>> {
+    for drop in [5.0_f64, 30.0] {
+        if duration <= drop + 1.0 {
+            continue;
+        }
+        let keep = duration - drop;
+        let o = run(
+            Command::new(&config.ffmpeg)
+                .args(["-v", "error", "-err_detect", "explode", "-xerror", "-i"])
+                .arg(path)
+                .args(["-t", &format!("{keep:.3}"), "-f", "null", "-"]),
+            config.timeout(),
+        )
+        .await?;
+        if o.status.success() && o.stderr.is_empty() {
+            return Ok(Some(drop));
+        }
+    }
+    Ok(None)
 }
 async fn hashes(
     config: &Config,
@@ -200,6 +231,79 @@ pub async fn duplicate(config: &Config, media: &Resolved) -> Result<Option<PathB
 #[cfg(test)]
 mod tests {
     use super::*;
+    use clap::Parser;
+    /// 结尾被截断的成品要能救回来，坏在片中的不能——用真实 ffmpeg 各验一遍。
+    #[tokio::test]
+    async fn a_video_truncated_at_the_end_is_kept_but_mid_damage_is_not() {
+        if std::process::Command::new("ffmpeg")
+            .arg("-version")
+            .output()
+            .is_err()
+        {
+            eprintln!("skipped: ffmpeg not available");
+            return; // 没装 ffmpeg 就跳过（镜像构建阶段就是这种情形）
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let whole = dir.path().join("whole.mp4");
+        let made = std::process::Command::new("ffmpeg")
+            .args([
+                "-v",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=size=160x120:rate=25:duration=12",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=440:duration=12",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                "-shortest",
+            ])
+            .arg(&whole)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !made {
+            eprintln!("skipped: ffmpeg could not encode the test video");
+            return; // 本机 ffmpeg 没带 libx264/aac 也跳过
+        }
+        let mut config = Config::parse_from(["pagecatch"]);
+        config.ffmpeg = "ffmpeg".into();
+        config.ffprobe = "ffprobe".into();
+        config.data = dir.path().to_path_buf();
+        let bytes = std::fs::read(&whole).unwrap();
+
+        // 1) 尾部被截断：救回来，并说明丢掉了结尾多少秒。
+        let cut = dir.path().join("cut.mp4");
+        std::fs::write(&cut, &bytes[..bytes.len() - 3000]).unwrap();
+        let (duration, note) = verify(&config, 1, &cut, None, None)
+            .await
+            .expect("结尾截断应该被救回");
+        assert!(duration > 0.0);
+        assert!(
+            note.unwrap_or_default().contains("last"),
+            "说明里要写清楚丢的是结尾"
+        );
+
+        // 2) 坏在片中：不是结尾的问题，照旧判失败。
+        let mid = dir.path().join("mid.mp4");
+        let mut damaged = bytes.clone();
+        let offset = damaged.len() / 2;
+        damaged[offset..offset + 2000].fill(0);
+        std::fs::write(&mid, &damaged).unwrap();
+        assert!(
+            verify(&config, 2, &mid, None, None).await.is_err(),
+            "坏在片中的成品不该被放行"
+        );
+    }
     #[test]
     fn duration_slack_grows_for_known_missing_segments() {
         // 完整列表：只给基础容忍。

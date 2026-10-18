@@ -235,23 +235,35 @@ pub async fn download(
         // 先严格跑一次：缺片、缺时长这类不完整成品照旧算失败。
         let mut exit = run_engine(&config, &task, &media, &store, &cancel, &work, false)?;
         let mut saved_missing = None;
-        // 只有引擎明确报“分片数与列表不符”时才退选允许缺片再跑一次；其他原因
-        // （网络、鉴权、解密）退选也下不出东西，不浪费一次下载。
+        // 引擎失败按原因分类，各走各的补救（remedy 模块）。
         if !exit.success()
             && let Some(tail) = read_log_tail(&log, offset)
-            && let Remedy::AllowMissingSegments { missing, total } =
-                remedy::choose(remedy::Failure::Engine(&tail))
         {
-            append_log(
-                &config,
-                task.id,
-                &format!(
-                    "The playlist lists {missing} of {total} segments the server does not serve; retrying once with the segment count check off"
-                ),
-            );
-            exit = run_engine(&config, &task, &media, &store, &cancel, &work, true)?;
-            if exit.success() {
-                saved_missing = Some((missing, total));
+            match remedy::choose(remedy::Failure::Engine(&tail)) {
+                // 源站确实丢片：退选允许缺片再跑一次，成品会缺一小段。
+                Remedy::AllowMissingSegments { missing, total } => {
+                    append_log(
+                        &config,
+                        task.id,
+                        &format!(
+                            "The playlist lists {missing} of {total} segments the server does not serve; retrying once with the segment count check off"
+                        ),
+                    );
+                    exit = run_engine(&config, &task, &media, &store, &cancel, &work, true)?;
+                    if exit.success() {
+                        saved_missing = Some((missing, total));
+                    }
+                }
+                // 地址已失效：再重试只会拿到同样被拒的地址，直接停。
+                Remedy::Stop(reason) => {
+                    append_log(
+                        &config,
+                        task.id,
+                        &format!("Remedy: stop retrying — {reason}"),
+                    );
+                    return Err(anyhow::Error::new(remedy::Fatal(reason)));
+                }
+                other => append_log(&config, task.id, &format!("Remedy: {}", other.label())),
             }
         }
         anyhow::ensure!(exit.success(), "Download engine failed. Check the task logs.");

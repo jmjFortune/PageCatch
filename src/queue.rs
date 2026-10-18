@@ -193,6 +193,15 @@ impl Queue {
                 Err(e) => {
                     last = format!("{e:#}");
                     downloader::append_log(&config, task.id, &last);
+                    // 判为“再试也不会变”的失败（类型化传递）直接停，别白跑剩下的尝试。
+                    if let Some(fatal) = e.downcast_ref::<remedy::Fatal>() {
+                        downloader::append_log(
+                            &config,
+                            task.id,
+                            &format!("Remedy: stop retrying — {}", fatal.0),
+                        );
+                        break;
+                    }
                     // 补救选择集中在 remedy 模块：这里只关心“还要不要再试”。
                     match remedy::choose(remedy::Failure::Message(&last)) {
                         remedy::Remedy::Stop(reason) => {
@@ -286,7 +295,7 @@ impl Queue {
             bytes,
             None,
         )?;
-        let (duration, tolerated) = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, task.id, &file.path, media.duration, file.missing_segments)=>r? };
+        let (duration, verify_note) = tokio::select! { _=cancel.cancelled()=>anyhow::bail!("Cancelled"), r=verify::verify(&config, task.id, &file.path, media.duration, file.missing_segments)=>r? };
         anyhow::ensure!(!cancel.is_cancelled(), "Cancelled");
         let suffix = if config.preview_segments.is_some() {
             "_preview"
@@ -307,8 +316,9 @@ impl Queue {
                 " · {missing} of {total} segments missing, saved as-is"
             ));
         }
-        if tolerated {
-            note.push_str(" · timestamp warning tolerated");
+        if let Some(verify_note) = verify_note {
+            note.push_str(" · ");
+            note.push_str(&verify_note);
         }
         self.store.update(
             task.id,
