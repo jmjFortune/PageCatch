@@ -49,7 +49,23 @@
 | :--- | :--- | :--- | :--- |
 | `fail` | `POST /api/tasks/{id}/dead` | `dead` | 人工从失败任务移至失效死链池 |
 | `dead` | `POST /api/tasks/{id}/retry` | `pending` | 人工手动恢复/重新尝试下载 |
+| `fail` | `POST /api/tasks/{id}/retry` | `pending` | 人工重试；同时记下来源状态与失败原因（见 3.1） |
+| `pending` / `resolving` / `downloading` / `verifying` | `POST /api/tasks/{id}/cancel` | `fail` / `dead` / `cancelled` | 见 3.1 |
 | `dead` | `DELETE /api/tasks/{id}` | 已删除 | 从任务库彻底删除记录 |
+
+### 3.1 取消语义 (Cancel)
+
+`cancel` **不再无条件写入 `cancelled`**。若任务是通过人工重试（`retry`）进入队列的，取消会把它放回它来的地方：
+
+| 取消前的来源 | 取消后 |
+| :--- | :--- |
+| 从 `fail` 重试而来 | 回到 `fail`，并还原原失败原因 |
+| 从 `dead` 重试而来 | 回到 `dead` |
+| 新任务，或从 `cancelled` 重试而来 | `cancelled` |
+
+原因：前端只在 `All` / `Active` / `Completed` / `Failed` / `Dead` 五个标签间归类（`web/app.js`），`cancelled` 不属于其中任何一个，会变成"只在 All 里找得到"的孤儿状态。返回 `fail` 后任务重新出现在 `Failed` 列表，用户才能继续重试或删除记录。
+
+实现：`tasks` 表新增 `retry_from` / `retry_message` 两列（老库由 `Store::open` 自动 `ALTER TABLE` 补列）；`retry()` 写入来源状态与 message，`cancel()` 读取后决定目标状态，并在写入时清空这两列，保证重复"重试 → 取消"是可逆且幂等的。
 
 > **调度器约束**：
 > 1. `dead` 状态的任务**严禁**被后台自动重试队列重新调度执行；
