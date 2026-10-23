@@ -7,6 +7,14 @@ async fn main() -> anyhow::Result<()> {
     let cpu = Arc::new(pagecatch::cpu::CpuLimit::new()?);
     config.prepare()?;
     downloader::dependency_check(&config)?;
+    // The dependency check starts the engine once; drop the binary pages it
+    // leaves behind so an idle container does not keep them as active cache.
+    for tool in [&config.downloader, &config.ffmpeg, &config.ffprobe] {
+        pagecatch::cache::release(std::path::Path::new(tool));
+    }
+    if let Some(browser) = pagecatch::resolver::browser::executable(&config) {
+        pagecatch::cache::release(&browser);
+    }
     if config.doctor {
         println!(
             "Download engine, FFmpeg and ffprobe are available; browser: {:?}",
