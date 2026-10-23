@@ -64,6 +64,10 @@ async fn publish_at(
     staged
         .persist(&destination)
         .context("Could not publish the verified video")?;
+    // The copy left this file in the page cache; strict verification also read
+    // the whole source. Hand those clean pages back instead of holding the video
+    // twice in the container's cgroup until the kernel feels memory pressure.
+    crate::cache::release(&destination);
     Ok(destination)
 }
 
