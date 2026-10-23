@@ -8,6 +8,8 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY web ./web
+# Read by cpu::packaging_tests so the build fails if the capability is dropped.
+COPY compose.yaml compose.nas.yaml ./
 # Source timestamps can be older than the artifacts kept in /build/target when the tree
 # is synced with rsync or copied from a share, and Cargo then silently skips recompiling
 # and embeds stale web assets. Bump the timestamps so a build always follows file contents.
