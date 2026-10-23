@@ -136,7 +136,9 @@ fn apply_tree(root: u32, cpus: &[usize]) -> Result<()> {
                 if result != 0 {
                     let error = io::Error::last_os_error();
                     if error.raw_os_error() != Some(libc::ESRCH) {
-                        return Err(error).context("Could not apply CPU core limit");
+                        return Err(error).context(
+                            "Could not apply the CPU core limit; grant CAP_SYS_NICE (compose: cap_add: [SYS_NICE]) so child processes can be pinned",
+                        );
                     }
                 }
             }
@@ -277,5 +279,18 @@ mod tests {
         assert_eq!(queue.current_config().cpu_cores, 1);
         assert_eq!(store.load_settings().unwrap().unwrap().cpu_cores, 1);
         assert_eq!(available_cpus().unwrap(), expected);
+    }
+}
+
+// The affinity limit also covers child processes, which requires CAP_SYS_NICE.
+// Keep both deployment files from silently dropping the capability again.
+#[cfg(test)]
+mod packaging_tests {
+    #[test]
+    fn compose_grants_sys_nice() {
+        for file in ["compose.yaml", "compose.nas.yaml"] {
+            let text = std::fs::read_to_string(file).unwrap();
+            assert!(text.contains("SYS_NICE"), "{file} must grant CAP_SYS_NICE");
+        }
     }
 }

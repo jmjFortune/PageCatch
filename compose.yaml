@@ -18,6 +18,9 @@ services:
       - "${PC_DOWNLOAD_DIR:-./downloads}:${PC_OUTPUT:-/downloads}"
     shm_size: 256mb
     restart: unless-stopped
+    # sched_setaffinity on child processes and other threads requires CAP_SYS_NICE.
+    cap_add:
+      - SYS_NICE
     stop_grace_period: 20s
     # 如指定 user，请确保两个挂载目录可写。
     # user: "1000:1000"
